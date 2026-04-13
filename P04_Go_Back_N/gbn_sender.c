@@ -1,97 +1,45 @@
 #include <stdio.h>
-
 #include <stdlib.h>
-
 #include <string.h>
-
 #include <unistd.h>
-
 #include <arpa/inet.h>
 
 #define PORT 8080
-
-#define WINDOW_SIZE 3
-
-#define TOTAL_FRAMES 10
+#define WINDOW_SIZE 4
+#define MAX_FRAMES 10
 
 int main() {
+    int sock;
+    struct sockaddr_in serv_addr;
+    int total_frames, ack;
 
-int sock = 0;
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+    connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
-struct sockaddr_in serv_addr;
+    printf("Enter total number of frames: ");
+    scanf("%d", &total_frames);
+    send(sock, &total_frames, sizeof(total_frames), 0);
 
-char buffer[1024] = {0};
-
-int acked = 0, sent = 0;
-
-sock = socket(AF_INET, SOCK_STREAM, 0);
-
-serv_addr.sin_family = AF_INET;
-
-serv_addr.sin_port = htons(PORT);
-
-inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
-
-if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) <
-0) {
-
-printf("Connection Failed
-");
-
-return -1;
-
-}
-
-printf("\--- SENDER \--- 
-Window Size: %d
-", WINDOW_SIZE);
-
-while (acked < TOTAL_FRAMES) {
-
-while (sent < acked + WINDOW_SIZE && sent < TOTAL_FRAMES) {
-
-printf("Sending Packet: %d
-", sent);
-
-sprintf(buffer, "%d", sent);
-
-send(sock, buffer, strlen(buffer), 0);
-
-sent++;
-
-sleep(1);
-
-}
-
-memset(buffer, 0, 1024);
-
-recv(sock, buffer, 1024, 0);
-
-int received_ack = atoi(&buffer[4]);
-
-if (received_ack == acked) {
-
-printf("Received ACK for %d. Sliding window\...
-", acked);
-
-acked++;
-
-} else {
-
-printf("ACK Error! Going back to Packet %d
-", acked);
-
-sent = acked;
-
-}
-
-}
-
-printf("All packets delivered successfully.
-");
-
-close(sock);
-
-return 0;
-
+    int base = 0, next_frame = 0;
+    while (base < total_frames) {
+        while (next_frame < base + WINDOW_SIZE && next_frame < total_frames) {
+            printf("Sending frame %d\n", next_frame);
+            send(sock, &next_frame, sizeof(next_frame), 0);
+            next_frame++;
+        }
+        recv(sock, &ack, sizeof(ack), 0);
+        if (ack == -1) {
+            printf("NAK received. Resending from frame %d\n", base);
+            next_frame = base;
+        } else {
+            printf("ACK received for frame %d\n", ack);
+            base = ack + 1;
+        }
+    }
+    printf("All frames sent successfully.\n");
+    close(sock);
+    return 0;
 }

@@ -1,82 +1,46 @@
 #include <stdio.h>
-
 #include <stdlib.h>
-
 #include <string.h>
-
 #include <unistd.h>
-
 #include <arpa/inet.h>
 
-#define PORT 9090
-
-#define TOTAL_FRAMES 5
-
-#define WINDOW_SIZE 3
+#define PORT 8080
+#define WINDOW_SIZE 4
 
 int main() {
+    int sock;
+    struct sockaddr_in serv_addr;
+    int total_frames, ack, frame;
 
-int sock;
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+    connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
-struct sockaddr_in receiver;
+    printf("Enter total frames: ");
+    scanf("%d", &total_frames);
+    send(sock, &total_frames, sizeof(total_frames), 0);
 
-int base = 0, next = 0;
+    int acked[100] = {0};
+    int base = 0, next_frame = 0;
 
-int ack;
-
-sock = socket(AF_INET, SOCK_STREAM, 0);
-
-receiver.sin_family = AF_INET;
-
-receiver.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-receiver.sin_port = htons(PORT);
-
-if (connect(sock, (struct sockaddr*)&receiver, sizeof(receiver)) < 0)
-{
-
-printf("Connection failed!
-");
-
-return 1;
-
-}
-
-printf("Sender connected to receiver
-
-");
-
-while (base < TOTAL_FRAMES) {
-
-while (next < base + WINDOW_SIZE && next < TOTAL_FRAMES) {
-
-printf("Sending frame %d
-", next);
-
-send(sock, (char*)&next, sizeof(next), 0);
-
-next++;
-
-}
-
-int bytes = recv(sock, (char*)&ack, sizeof(ack), 0);
-
-if (bytes <= 0) break;
-
-printf("Received ACK %d
-
-", ack);
-
-base = ack + 1;
-
-}
-
-int end = -1;
-
-send(sock, (char*)&end, sizeof(end), 0);
-
-close(sock);
-
-return 0;
-
+    while (base < total_frames) {
+        while (next_frame < base + WINDOW_SIZE && next_frame < total_frames) {
+            if (!acked[next_frame]) {
+                printf("Sending frame %d\n", next_frame);
+                send(sock, &next_frame, sizeof(next_frame), 0);
+            }
+            next_frame++;
+        }
+        recv(sock, &ack, sizeof(ack), 0);
+        if (ack >= 0) {
+            printf("ACK received for frame %d\n", ack);
+            acked[ack] = 1;
+            while (acked[base]) base++;
+        }
+    }
+    printf("All frames sent and acknowledged.\n");
+    close(sock);
+    return 0;
 }

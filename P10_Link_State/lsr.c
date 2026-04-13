@@ -1,85 +1,53 @@
 #include <stdio.h>
-
 #define INF 9999
-
 #define MAX 10
 
+int dist[MAX], visited[MAX], cost[MAX][MAX];
+int n;
+
+void dijkstra(int src) {
+    for (int i = 0; i < n; i++) {
+        dist[i] = INF;
+        visited[i] = 0;
+    }
+    dist[src] = 0;
+
+    for (int count = 0; count < n - 1; count++) {
+        int u = -1;
+        for (int i = 0; i < n; i++)
+            if (!visited[i] && (u == -1 || dist[i] < dist[u]))
+                u = i;
+
+        visited[u] = 1;
+
+        for (int v = 0; v < n; v++) {
+            if (!visited[v] && cost[u][v] != INF && dist[u] + cost[u][v] < dist[v])
+                dist[v] = dist[u] + cost[u][v];
+        }
+    }
+}
+
 int main() {
+    int src;
+    printf("Enter number of nodes: ");
+    scanf("%d", &n);
 
-int n, i, j, src;
+    printf("Enter cost matrix (use 9999 for no link):\n");
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            scanf("%d", &cost[i][j]);
 
-int cost[MAX][MAX], dist[MAX], visited[MAX];
+    printf("Enter source node (0 to %d): ", n - 1);
+    scanf("%d", &src);
 
-printf("Enter number of nodes: ");
+    dijkstra(src);
 
-scanf("%d", &n);
-
-printf("Enter cost matrix (use 9999 for no link):
-");
-
-for (i = 0; i < n; i++)
-
-for (j = 0; j < n; j++)
-
-scanf("%d", &cost[i][j]);
-
-printf("Enter source node (0 to %d): ", n - 1);
-
-scanf("%d", &src);
-
-for (i = 0; i < n; i++) {
-
-dist[i] = cost[src][i];
-
-visited[i] = 0;
-
-}
-
-visited[src] = 1;
-
-dist[src] = 0;
-
-for (i = 1; i < n; i++) {
-
-int min = INF, u = -1;
-
-for (j = 0; j < n; j++) {
-
-if (!visited[j] && dist[j] < min) {
-
-min = dist[j];
-
-u = j;
-
-}
-
-}
-
-visited[u] = 1;
-
-for (j = 0; j < n; j++) {
-
-if (!visited[j] && dist[u] + cost[u][j] < dist[j]) {
-
-dist[j] = dist[u] + cost[u][j];
-
-}
-
-}
-
-}
-
-printf("
-Shortest paths from node %d:
-", src);
-
-for (i = 0; i < n; i++) {
-
-printf("To node %d cost = %d
-", i, dist[i]);
-
-}
-
-return 0;
-
+    printf("\nShortest paths from node %d:\n", src);
+    for (int i = 0; i < n; i++) {
+        if (dist[i] == INF)
+            printf("To node %d: Unreachable\n", i);
+        else
+            printf("To node %d cost = %d\n", i, dist[i]);
+    }
+    return 0;
 }
